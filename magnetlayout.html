@@ -137,7 +137,7 @@
     async function generateSheet(PerRow,PerCol) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "in", format: "letter" });
-		
+      toggleCutMarks(); // remove cutmarks before building imgData
       //const magnetsPerRow = 3;
       //const magnetsPerCol = 4;
       const magnetsPerRow = PerRow;
@@ -152,6 +152,8 @@
 
       const imgData = canvas.toDataURL("image/png");
 
+      toggleCutMarks(); // toggle cutmarks to back on.
+      
       for (let row = 0; row < magnetsPerCol; row++) {
         for (let col = 0; col < magnetsPerRow; col++) {
           //const x = marginLeft + col * magnetInches;
