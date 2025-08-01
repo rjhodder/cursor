@@ -152,8 +152,8 @@
 
       for (let row = 0; row < magnetsPerCol; row++) {
         for (let col = 0; col < magnetsPerRow; col++) {
-          const x = marginLeft + col * magnetInches;
-          const y = marginTop + row * magnetInches;
+          const x = marginLeft + col * totalSize;
+          const y = marginTop + row * totalSize;
           doc.addImage(imgData, "PNG", x, y, magnetInches, magnetInches);
         }
       }
