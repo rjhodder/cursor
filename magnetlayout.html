@@ -46,7 +46,7 @@
     <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
     <button onclick="toggleCutMarks()">Toggle Cut Marks</button>
     <canvas id="templateCanvas" width="675" height="675"></canvas>
-    <button onclick="generateSheet()">Generate Full Sheet PDF</button>
+    <button onclick="generateSheet(3,4)">Generate Full Sheet PDF</button> // generateSheet(Rows,Columns)
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -134,16 +134,18 @@
       drawTemplate();
     }
 
-    async function generateSheet() {
+    async function generateSheet(PerRow,PerCol) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "in", format: "letter" });
 		
-      const magnetsPerRow = 3;
-      const magnetsPerCol = 4;
+      //const magnetsPerRow = 3;
+      //const magnetsPerCol = 4;
+      const magnetsPerRow = PerRow;
+      const magnetsPerCol = PerCol;
 	  
-	  const gap = 0.2; // 0.1 inch gap between magnets
+	    const gap = 0.1; // 0.1 inch gap between magnets
       const magnetInches = 2.25;
-	  const totalSize = magnetInches + gap;
+	    const totalSize = magnetInches + gap;
 	  
       const marginLeft = (8.5 - (magnetsPerRow * totalSize)) / 2;
       const marginTop = (11 - (magnetsPerCol * totalSize)) / 2;
@@ -152,8 +154,10 @@
 
       for (let row = 0; row < magnetsPerCol; row++) {
         for (let col = 0; col < magnetsPerRow; col++) {
-          const x = marginLeft + col * magnetInches;
-          const y = marginTop + row * magnetInches;
+          //const x = marginLeft + col * magnetInches;
+          //const y = marginTop + row * magnetInches;
+          const x = marginLeft + col * totalSize;
+          const y = marginTop + row * totalSize;
           doc.addImage(imgData, "PNG", x, y, magnetInches, magnetInches);
         }
       }
