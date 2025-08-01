@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2x2 Magnet Layout App</title>
+  <title>Magnet Layout App</title>
   <style>
     body {
       font-family: sans-serif;
@@ -30,23 +30,58 @@
       margin: 20px 0;
       cursor: move;
     }
-    input[type="file"], input[type="text"] {
+    input[type="file"], input[type="text"], select {
       margin: 10px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
     }
     button {
       margin: 10px;
+      padding: 8px 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f0f0f0;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #e0e0e0;
+    }
+    .dark-mode button {
+      background: #333;
+      color: #fff;
+      border-color: #555;
+    }
+    .dark-mode button:hover {
+      background: #444;
+    }
+    .dark-mode input, .dark-mode select {
+      background: #333;
+      color: #fff;
+      border-color: #555;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>2" x 2" Magnet Designer</h1>
+    <h1 id="pageTitle">Magnet Designer</h1>
+    
+    <div>
+      <label for="magnetSize">Magnet Size:</label>
+      <select id="magnetSize" onchange="onSizeChange()">
+        <option value="2x2">2" × 2"</option>
+        <option value="2.5x2.5">2.5" × 2.5"</option>
+        <option value="3x2">3" × 2"</option>
+        <option value="3x3">3" × 3"</option>
+      </select>
+    </div>
+    
     <input type="file" id="imageLoader" accept="image/*" />
     <input type="text" id="brandingText" placeholder="Enter branding text" />
     <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
     <button onclick="toggleCutMarks()">Toggle Cut Marks</button>
-    <canvas id="templateCanvas" width="675" height="675"></canvas>
-    <button onclick="generateSheet(3,4)">Generate Full Sheet PDF</button> // generateSheet(Rows,Columns)
+    <canvas id="templateCanvas"></canvas>
+    <button onclick="generateSheet()">Generate Full Sheet PDF</button>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -54,32 +89,114 @@
     const canvas = document.getElementById("templateCanvas");
     const ctx = canvas.getContext("2d");
 
-    const bleedSize = 675;
-    const trimSize = 600;
-    const safeSize = 525;
-    const margin = (bleedSize - trimSize) / 2;
-    const safeMargin = (bleedSize - safeSize) / 2;
+    // Configuration for different magnet sizes
+    const magnetConfigs = {
+      "2x2": {
+        displayName: "2\" × 2\"",
+        width: 2,
+        height: 2,
+        canvasSize: 600,
+        pdfRows: 4,
+        pdfCols: 3,
+        magnetInches: 2.25
+      },
+      "2.5x2.5": {
+        displayName: "2.5\" × 2.5\"",
+        width: 2.5,
+        height: 2.5,
+        canvasSize: 750,
+        pdfRows: 3,
+        pdfCols: 3,
+        magnetInches: 2.75
+      },
+      "3x2": {
+        displayName: "3\" × 2\"",
+        width: 3,
+        height: 2,
+        canvasSize: 900,
+        pdfRows: 4,
+        pdfCols: 2,
+        magnetInches: 3.25
+      },
+      "3x3": {
+        displayName: "3\" × 3\"",
+        width: 3,
+        height: 3,
+        canvasSize: 900,
+        pdfRows: 3,
+        pdfCols: 2,
+        magnetInches: 3.25
+      }
+    };
 
+    let currentSize = "2x2";
+    let currentConfig = magnetConfigs[currentSize];
+    
+    let bleedSize, trimSize, safeSize, margin, safeMargin;
     let uploadedImage, brandingText = "", showCutMarks = true;
     let imageX = 0, imageY = 0, isDragging = false;
+
+    function updateDimensions() {
+      const config = magnetConfigs[currentSize];
+      const aspectRatio = config.width / config.height;
+      
+      if (aspectRatio >= 1) {
+        // Width is greater than or equal to height
+        canvas.width = config.canvasSize;
+        canvas.height = config.canvasSize / aspectRatio;
+      } else {
+        // Height is greater than width
+        canvas.width = config.canvasSize * aspectRatio;
+        canvas.height = config.canvasSize;
+      }
+      
+      bleedSize = Math.max(canvas.width, canvas.height);
+      trimSize = bleedSize * 0.89; // ~10% bleed
+      safeSize = bleedSize * 0.78; // ~22% safe area
+      margin = (bleedSize - trimSize) / 2;
+      safeMargin = (bleedSize - safeSize) / 2;
+      
+      currentConfig = config;
+    }
+
+    function onSizeChange() {
+      const sizeSelect = document.getElementById("magnetSize");
+      currentSize = sizeSelect.value;
+      updateDimensions();
+      updateTitle();
+      drawTemplate();
+    }
+
+    function updateTitle() {
+      const config = magnetConfigs[currentSize];
+      document.getElementById("pageTitle").textContent = `${config.displayName} Magnet Designer`;
+    }
 
     function drawTemplate() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#f0f0f0";
-      ctx.fillRect(0, 0, bleedSize, bleedSize);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       if (uploadedImage) {
-        ctx.drawImage(uploadedImage, imageX, imageY, bleedSize, bleedSize);
+        ctx.drawImage(uploadedImage, imageX, imageY, canvas.width, canvas.height);
       }
 
       if (showCutMarks) {
         ctx.strokeStyle = "red";
         ctx.lineWidth = 2;
-        ctx.strokeRect(margin, margin, trimSize, trimSize);
+        const trimWidth = trimSize * (canvas.width / bleedSize);
+        const trimHeight = trimSize * (canvas.height / bleedSize);
+        const marginX = (canvas.width - trimWidth) / 2;
+        const marginY = (canvas.height - trimHeight) / 2;
+        ctx.strokeRect(marginX, marginY, trimWidth, trimHeight);
 
         ctx.strokeStyle = "green";
         ctx.setLineDash([5, 5]);
-        ctx.strokeRect(safeMargin, safeMargin, safeSize, safeSize);
+        const safeWidth = safeSize * (canvas.width / bleedSize);
+        const safeHeight = safeSize * (canvas.height / bleedSize);
+        const safeMarginX = (canvas.width - safeWidth) / 2;
+        const safeMarginY = (canvas.height - safeHeight) / 2;
+        ctx.strokeRect(safeMarginX, safeMarginY, safeWidth, safeHeight);
         ctx.setLineDash([]);
       }
 
@@ -87,7 +204,7 @@
         ctx.fillStyle = "black";
         ctx.font = "30px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(brandingText, bleedSize / 2, bleedSize - 20);
+        ctx.fillText(brandingText, canvas.width / 2, canvas.height - 20);
       }
     }
 
@@ -119,8 +236,8 @@
     canvas.addEventListener("mousemove", (e) => {
       if (isDragging && uploadedImage) {
         const rect = canvas.getBoundingClientRect();
-        imageX = e.clientX - rect.left - bleedSize / 2;
-        imageY = e.clientY - rect.top - bleedSize / 2;
+        imageX = e.clientX - rect.left - canvas.width / 2;
+        imageY = e.clientY - rect.top - canvas.height / 2;
         drawTemplate();
       }
     });
@@ -134,39 +251,44 @@
       drawTemplate();
     }
 
-    async function generateSheet(PerRow,PerCol) {
+    async function generateSheet() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "in", format: "letter" });
+      const config = currentConfig;
+      
       toggleCutMarks(); // remove cutmarks before building imgData
-      //const magnetsPerRow = 3;
-      //const magnetsPerCol = 4;
-      const magnetsPerRow = PerRow;
-      const magnetsPerCol = PerCol;
-	  
-	    const gap = 0.1; // 0.1 inch gap between magnets
-      const magnetInches = 2.25;
-	    const totalSize = magnetInches + gap;
-	  
-      const marginLeft = (8.5 - (magnetsPerRow * totalSize)) / 2;
-      const marginTop = (11 - (magnetsPerCol * totalSize)) / 2;
+      
+      const magnetsPerRow = config.pdfCols;
+      const magnetsPerCol = config.pdfRows;
+      
+      const gap = 0.1; // 0.1 inch gap between magnets
+      const magnetWidthInches = config.magnetInches * (config.width / Math.max(config.width, config.height));
+      const magnetHeightInches = config.magnetInches * (config.height / Math.max(config.width, config.height));
+      
+      const totalWidthSize = magnetWidthInches + gap;
+      const totalHeightSize = magnetHeightInches + gap;
+      
+      const marginLeft = (8.5 - (magnetsPerRow * totalWidthSize)) / 2;
+      const marginTop = (11 - (magnetsPerCol * totalHeightSize)) / 2;
 
       const imgData = canvas.toDataURL("image/png");
 
-      toggleCutMarks(); // toggle cutmarks to back on.
+      toggleCutMarks(); // toggle cutmarks back on
       
       for (let row = 0; row < magnetsPerCol; row++) {
         for (let col = 0; col < magnetsPerRow; col++) {
-          //const x = marginLeft + col * magnetInches;
-          //const y = marginTop + row * magnetInches;
-          const x = marginLeft + col * totalSize;
-          const y = marginTop + row * totalSize;
-          doc.addImage(imgData, "PNG", x, y, magnetInches, magnetInches);
+          const x = marginLeft + col * totalWidthSize;
+          const y = marginTop + row * totalHeightSize;
+          doc.addImage(imgData, "PNG", x, y, magnetWidthInches, magnetHeightInches);
         }
       }
 
-      doc.save("magnet_sheet.pdf");
+      doc.save(`${config.displayName.replace(/[^a-zA-Z0-9]/g, '_')}_magnet_sheet.pdf`);
     }
 
+    // Initialize
+    updateDimensions();
+    updateTitle();
     drawTemplate();
   </script>
 </body>
